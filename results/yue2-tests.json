@@ -1,0 +1,57 @@
+[
+  {
+    "Test": "01-full-score-cond",
+    "Exit": 0,
+    "WallS": 13.0,
+    "AudioS": 21.7,
+    "RTF": 0.480854,
+    "ABCtokens": null,
+    "SemTokens": 543.0,
+    "MB": 3.98,
+    "Error": ""
+  },
+  {
+    "Test": "02-cfg-scale",
+    "Exit": 0,
+    "WallS": 32.9,
+    "AudioS": 52.2,
+    "RTF": 0.573073,
+    "ABCtokens": null,
+    "SemTokens": 1304.0,
+    "MB": 9.55,
+    "Error": ""
+  },
+  {
+    "Test": "03-sampling",
+    "Exit": 0,
+    "WallS": 32.2,
+    "AudioS": 51.0,
+    "RTF": 0.574601,
+    "ABCtokens": null,
+    "SemTokens": 1275.0,
+    "MB": 9.34,
+    "Error": ""
+  },
+  {
+    "Test": "04-seed-repro",
+    "Exit": 0,
+    "WallS": 32.4,
+    "AudioS": 51.0,
+    "RTF": 0.576066,
+    "ABCtokens": null,
+    "SemTokens": 1275.0,
+    "MB": 9.34,
+    "Error": ""
+  },
+  {
+    "Test": "05-long-song",
+    "Exit": 0,
+    "WallS": 100.5,
+    "AudioS": 194.7,
+    "RTF": 0.491242,
+    "ABCtokens": null,
+    "SemTokens": 4867.0,
+    "MB": 35.65,
+    "Error": ""
+  }
+]

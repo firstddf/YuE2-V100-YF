@@ -1,0 +1,58 @@
+{
+  "_note": "精选自上游 YuE 仓库 top_200_tags.json(YuE-v1 分支)的常用子集,并做了清洗:去掉大小写重复、前导空格、以及明显脏数据(如 'None'、'为了让声乐更加生动,使用了混响效果。 vocal')。原始每类约 200 条,这里精简到可用的下拉框规模。",
+  "_important": "风格词表是【开放】的 —— 上游原文说 'our tags have an open vocabulary'。这里只是官方推荐词表的便捷入口,风格框里可以写任何内容,包括不在这份表里的词。",
+  "_curated_additions": "以下几条不在上游 top_200_tags.json 里,但 YuE2 官方 demo 与常见用法需要,故一并列入(词表开放,列出即合法):genre 的 city pop / nu-disco / anison / 古风;instrument 的 Rhodes / live drums / groovy bass;mood 的 cinematic / spacious。",
+  "_source": "https://github.com/multimodal-art-projection/YuE/blob/YuE-v1/top_200_tags.json",
+  "language": [
+    "English", "Mandarin", "Cantonese", "Japanese", "Korean",
+    "Spanish", "French", "German", "Russian", "Portuguese", "Italian"
+  ],
+  "genre": [
+    "pop", "pop rock", "indie pop", "indie rock", "rock", "classic rock", "hard rock",
+    "punk", "pop punk", "metal", "heavy metal", "death metal", "black metal",
+    "thrash metal", "symphonic metal", "progressive rock", "post-rock", "shoegaze",
+    "grunge", "alternative rock", "electronic", "electro pop", "synthpop", "house",
+    "techno", "dubstep", "trap", "hip-hop", "rap", "R&B", "soul", "funk", "disco",
+    "dance pop", "jazz", "blues", "folk", "indie folk", "country", "bluegrass",
+    "classical", "orchestral", "opera", "choral", "ambient", "chillout", "lounge",
+    "bossa nova", "samba", "reggae", "ska", "world", "celtic", "K-pop", "J-rock",
+    "soundtrack", "epic", "experimental", "gospel", "big band", "easy listening",
+    "city pop", "nu-disco", "anison", "instrumental", "古风",
+    "民谣", "流行", "摇滚", "民乐", "中国传统音乐"
+  ],
+  "instrument": [
+    "piano", "electric piano", "Rhodes", "synthesizer", "synth", "keyboard", "organ",
+    "harpsichord", "guitar", "acoustic guitar", "electric guitar", "bass",
+    "groovy bass", "synth bass", "drums", "live drums", "drum machine", "percussion",
+    "violin", "cello",
+    "strings", "harp", "flute", "saxophone", "trumpet", "trombone", "brass",
+    "harmonica", "banjo", "ukulele", "sitar", "koto", "zither", "accordion",
+    "glockenspiel", "marimba", "choir", "vocals",
+    "吉他", "贝斯", "钢琴", "鼓", "二胡", "古筝", "笛子", "小提琴", "大提琴", "手风琴"
+  ],
+  "mood": [
+    "uplifting", "inspiring", "happy", "joyful", "cheerful", "romantic", "love",
+    "sensual", "sad", "melancholic", "dark", "gloomy", "hopeful", "optimistic",
+    "calm", "relaxing", "peaceful", "soothing", "dreamy", "nostalgic",
+    "sentimental", "reflective", "introspective", "powerful", "energetic",
+    "upbeat", "danceable", "groovy", "funky", "confident", "empowering",
+    "aggressive", "angry", "intense", "rebellious", "playful", "funny", "elegant",
+    "atmospheric", "meditative", "spiritual", "vintage", "summer",
+    "cinematic", "spacious",
+    "怀旧", "抒情", "浪漫", "希望", "放松", "忧郁", "黑暗"
+  ],
+  "gender": [
+    "male", "female", "child", "human voice", "soprano", "mezzo-soprano",
+    "tenor", "not specified", "童声"
+  ],
+  "timbre": [
+    "bright vocal", "warm vocal", "clear vocal", "airy vocal", "mellow vocal",
+    "dark vocal", "rich vocal", "soft vocal", "powerful vocal", "crisp vocal",
+    "smooth vocal", "soulful vocal", "breathy vocal", "husky vocal", "raspy vocal",
+    "gritty vocal", "tender vocal", "velvet vocal", "polished vocal",
+    "youthful vocal", "deep vocal", "low-pitched vocal", "high-pitched vocal",
+    "whispery vocal", "resonant vocal", "pure vocal", "melodic vocal",
+    "emotional vocal", "passionate vocal", "aggressive vocal", "harsh vocal",
+    "温暖 vocal", "清脆 vocal", "柔和 vocal"
+  ]
+}

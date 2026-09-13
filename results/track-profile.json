@@ -1,0 +1,220 @@
+[
+  {
+    "file": "zh-01.wav",
+    "seconds": 52.6,
+    "bpm": 117.5,
+    "bpm_from_interval": 117.5,
+    "half_time": true,
+    "bpm_half": 58.7,
+    "bpm_options": {
+      "58.7": 0.5999,
+      "117.5": 0.5954,
+      "234.9": 0.4112
+    },
+    "beats": 96,
+    "beat_interval_median": 0.511,
+    "meter": 4,
+    "meter_contrast": 0.418,
+    "groove": "▅▅▅█▃█▅█",
+    "key": "A 大调",
+    "key_corr": 0.688,
+    "band_ratios": {
+      "<150Hz": 0.4489,
+      "150-400": 0.2646,
+      "400-1k": 0.2269,
+      "1k-2.5k": 0.0298,
+      "2.5k-5k": 0.0231,
+      ">5k": 0.0068
+    },
+    "hf_ratio": 0.0068,
+    "centroid_hz": 2131,
+    "rolloff85_hz": 4585,
+    "flatness": 0.01186,
+    "zcr": 0.0754,
+    "env_db": 1.6,
+    "lufs": -13.7,
+    "width": 0.197,
+    "suggested_tags": [
+      {
+        "tag": "groovy",
+        "reason": "声学脉冲 117.5 中快",
+        "in_vocab": true
+      },
+      {
+        "tag": "danceable",
+        "reason": "声学脉冲 可舞动",
+        "in_vocab": true
+      },
+      {
+        "tag": "calm",
+        "reason": "半速感知 58.7 很慢",
+        "in_vocab": true
+      },
+      {
+        "tag": "ambient",
+        "reason": "半速感知 慢速铺底",
+        "in_vocab": true
+      },
+      {
+        "tag": "meditative",
+        "reason": "起伏仅 1.6 dB,平稳",
+        "in_vocab": true
+      },
+      {
+        "tag": "uplifting",
+        "reason": "A 大调(相关 0.688),弱推断",
+        "in_vocab": true
+      }
+    ]
+  },
+  {
+    "file": "dream-A-structure.wav",
+    "seconds": 72.0,
+    "bpm": 161.5,
+    "bpm_from_interval": 161.5,
+    "half_time": true,
+    "bpm_half": 80.7,
+    "bpm_options": {
+      "80.7": 0.3353,
+      "161.5": 0.284
+    },
+    "beats": 155,
+    "beat_interval_median": 0.372,
+    "meter": 4,
+    "meter_contrast": 1.444,
+    "groove": "█▃▁▁█▁▃·",
+    "key": "C# 大调",
+    "key_corr": 0.955,
+    "band_ratios": {
+      "<150Hz": 0.6346,
+      "150-400": 0.2442,
+      "400-1k": 0.1004,
+      "1k-2.5k": 0.0119,
+      "2.5k-5k": 0.0062,
+      ">5k": 0.0026
+    },
+    "hf_ratio": 0.0026,
+    "centroid_hz": 1342,
+    "rolloff85_hz": 2766,
+    "flatness": 0.00234,
+    "zcr": 0.0365,
+    "env_db": 7.49,
+    "lufs": -13.9,
+    "width": 0.243,
+    "suggested_tags": [
+      {
+        "tag": "energetic",
+        "reason": "声学脉冲 161.5 快",
+        "in_vocab": true
+      },
+      {
+        "tag": "upbeat",
+        "reason": "声学脉冲 快速",
+        "in_vocab": true
+      },
+      {
+        "tag": "chillout",
+        "reason": "半速感知 80.7 中慢",
+        "in_vocab": true
+      },
+      {
+        "tag": "dreamy",
+        "reason": "半速感知 中慢速",
+        "in_vocab": true
+      },
+      {
+        "tag": "relaxing",
+        "reason": ">5kHz 能量仅占 0.26%(偏暗/柔)",
+        "in_vocab": true
+      },
+      {
+        "tag": "powerful",
+        "reason": "逐秒音量起伏 7.49 dB 很大",
+        "in_vocab": true
+      },
+      {
+        "tag": "intense",
+        "reason": "动态强",
+        "in_vocab": true
+      },
+      {
+        "tag": "uplifting",
+        "reason": "C# 大调(相关 0.955),弱推断",
+        "in_vocab": true
+      },
+      {
+        "tag": "groovy",
+        "reason": "拍内强弱分明(█▃▁▁█▁▃·)",
+        "in_vocab": true
+      }
+    ]
+  },
+  {
+    "file": "yue2-01.wav",
+    "seconds": 40.6,
+    "bpm": 95.7,
+    "bpm_from_interval": 95.7,
+    "half_time": true,
+    "bpm_half": 47.9,
+    "bpm_options": {
+      "47.9": 0.5604,
+      "95.7": 0.2997,
+      "191.4": 0.2896
+    },
+    "beats": 64,
+    "beat_interval_median": 0.627,
+    "meter": 4,
+    "meter_contrast": 1.088,
+    "groove": "▃▅▁▃▁█·█",
+    "key": "F# 小调",
+    "key_corr": 0.743,
+    "band_ratios": {
+      "<150Hz": 0.4005,
+      "150-400": 0.4534,
+      "400-1k": 0.1048,
+      "1k-2.5k": 0.0248,
+      "2.5k-5k": 0.0044,
+      ">5k": 0.0121
+    },
+    "hf_ratio": 0.0121,
+    "centroid_hz": 2312,
+    "rolloff85_hz": 5560,
+    "flatness": 0.01402,
+    "zcr": 0.0708,
+    "env_db": 2.55,
+    "lufs": -15.5,
+    "width": 0.212,
+    "suggested_tags": [
+      {
+        "tag": "chillout",
+        "reason": "声学脉冲 95.7 中慢",
+        "in_vocab": true
+      },
+      {
+        "tag": "dreamy",
+        "reason": "声学脉冲 中慢速",
+        "in_vocab": true
+      },
+      {
+        "tag": "calm",
+        "reason": "半速感知 47.9 很慢",
+        "in_vocab": true
+      },
+      {
+        "tag": "ambient",
+        "reason": "半速感知 慢速铺底",
+        "in_vocab": true
+      },
+      {
+        "tag": "melancholic",
+        "reason": "F# 小调(相关 0.743),弱推断",
+        "in_vocab": true
+      },
+      {
+        "tag": "groovy",
+        "reason": "拍内强弱分明(▃▅▁▃▁█·█)",
+        "in_vocab": true
+      }
+    ]
+  }
+]

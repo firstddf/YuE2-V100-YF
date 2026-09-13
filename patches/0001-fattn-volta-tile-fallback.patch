@@ -1,0 +1,23 @@
+diff --git a/external/ggml/src/ggml-cuda/fattn.cu b/external/ggml/src/ggml-cuda/fattn.cu
+index 16ee9e3..04af5c6 100644
+--- a/external/ggml/src/ggml-cuda/fattn.cu
++++ b/external/ggml/src/ggml-cuda/fattn.cu
+@@ -497,7 +497,17 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
+         if (Q->ne[1] * gqa_ratio_eff <= 16) {
+             return BEST_FATTN_KERNEL_TILE; // On Volta tensor cores are only faster for sufficiently large matrices.
+         }
+-        return BEST_FATTN_KERNEL_MMA_F16;
++        // [yue2-V100 local patch] The Volta MMA f16 kernel only implements tiles with
++        // ncols1*ncols2 >= 32 (see fattn-mma-f16.cuh, #ifdef VOLTA_MMA_AVAILABLE). The
++        // launcher above can still hand it a 16-column tile, which compiles to
++        // NO_DEVICE_CODE and traps at runtime:
++        //   "CUDA kernel flash_attn_ext_f16 has no device code compatible with CUDA arch 700"
++        // observed with YuE2 on a Tesla V100-SXM2-16GB. This branch is only reachable when
++        // the build targets Volta alone (ggml_cuda_highest_compiled_arch == VOLTA), which is
++        // exactly the single-arch build used here. The tile kernel is arch-generic and is
++        // upstream documented fallback for hardware without usable tensor cores.
++        // Revert: git -C audio.cpp checkout -- external/ggml/src/ggml-cuda/fattn.cu
++        return BEST_FATTN_KERNEL_TILE;
+     }
+ 
+     // Use the WMMA kernel if possible:

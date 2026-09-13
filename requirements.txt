@@ -1,0 +1,26 @@
+# yue2-V100 运行依赖(服务 + 界面 + 参考曲分析)
+#
+# 版本是本机**实测通过**的那一套(Windows / Python 3.12.10)。
+# 只有 8 个直接依赖;librosa 会带进 scipy / numba 等,装完约 300 MB。
+#
+# 装法:
+#   <你的 Python>\python.exe -m pip install -r requirements.txt
+#
+# ⚠️ 注意:本机沙箱里 pip 装不了包(它读自己的临时目录被拒),绕法见 docs/muscriptor.md。
+
+# HTTP 服务(app/yue2_service.py)
+fastapi==0.115.14
+uvicorn==0.46.0
+
+# 图形界面(app/gui.py)
+gradio==5.45.0
+requests==2.34.2
+
+# 参考曲分析(scripts/analyze-track.py / muscriptor-summary.py)
+librosa==0.11.0
+numpy==1.26.4
+soundfile==0.13.1
+pyloudnorm==0.2.0
+
+# 权重下载(scripts/fetch_weights.py)
+huggingface_hub==1.13.0

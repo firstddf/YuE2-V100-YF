@@ -1,0 +1,180 @@
+{
+  "GeneratedAt": "2026-09-13T09:31:47",
+  "Host": "DDF-V100 (Windows 11 build 22000)",
+  "Verdict": "READY WITH WARNINGS",
+  "Summary": {
+    "Pass": 16,
+    "Warn": 3,
+    "Fail": 0
+  },
+  "Checks": [
+    {
+      "Area": "OS",
+      "Item": "Version",
+      "Value": "Windows 11 build 22000 (registry: Windows 10 Pro)",
+      "Verdict": "PASS",
+      "Note": "build 22000 = Windows 11 21H2 despite the ProductName string"
+    },
+    {
+      "Area": "OS",
+      "Item": "LongPathsEnabled",
+      "Value": "1",
+      "Verdict": "PASS",
+      "Note": "Deep build trees under a long project path can still hit MAX_PATH"
+    },
+    {
+      "Area": "RAM",
+      "Item": "Available",
+      "Value": "54.8 GB",
+      "Verdict": "PASS",
+      "Note": "GGUF route mmaps weights; 8 GB+ free is enough (unlike the 24 GB PyTorch route)"
+    },
+    {
+      "Area": "GPU",
+      "Item": "Device",
+      "Value": "Tesla V100-SXM2-16GB / 16384 MiB / CC 7.0",
+      "Verdict": "PASS",
+      "Note": "Build target is compute_70; a non-7.0 card needs a different -CudaArchitectures"
+    },
+    {
+      "Area": "GPU",
+      "Item": "VRAM",
+      "Value": "16 GB",
+      "Verdict": "PASS",
+      "Note": "Q4_0 measured peak is ~7.7 GB and Q8_0 ~8.9 GB, so 16 GB has headroom"
+    },
+    {
+      "Area": "GPU",
+      "Item": "Driver",
+      "Value": "572.83",
+      "Verdict": "PASS",
+      "Note": "CUDA 12.8 needs >= 570; Volta is still supported below the 580 cut-off"
+    },
+    {
+      "Area": "CUDA",
+      "Item": "Installed toolkits",
+      "Value": "v12.8, v13.1",
+      "Verdict": "WARN",
+      "Note": "A 13.x toolkit cannot build sm_70 - pin CUDAToolkit_ROOT and CMAKE_CUDA_COMPILER to the 12.x tree"
+    },
+    {
+      "Area": "CUDA",
+      "Item": "Active toolkit root",
+      "Value": "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8",
+      "Verdict": "INFO",
+      "Note": "Derived from the nvcc on PATH"
+    },
+    {
+      "Area": "CUDA",
+      "Item": "nvcc",
+      "Value": "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin\\nvcc.exe :: Cuda compilation tools, release 12.8, V12.8.61",
+      "Verdict": "PASS",
+      "Note": "CUDA 13 removes sm_70 entirely; a 12.x toolkit is mandatory for V100"
+    },
+    {
+      "Area": "CUDA",
+      "Item": "compute_70 available",
+      "Value": "yes",
+      "Verdict": "PASS",
+      "Note": "This is the single most important check: without compute_70 there is no V100 build"
+    },
+    {
+      "Area": "CUDA",
+      "Item": "CUDA_PATH",
+      "Value": "",
+      "Verdict": "WARN",
+      "Note": "Toolkit root used by CMake when CUDAToolkit_ROOT is not passed explicitly"
+    },
+    {
+      "Area": "MSVC",
+      "Item": "CUDA host compiler ceiling",
+      "Value": "_MSC_VER < 1950",
+      "Verdict": "INFO",
+      "Note": "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\include\\crt\\host_config.h"
+    },
+    {
+      "Area": "MSVC",
+      "Item": "cl.exe (usable)",
+      "Value": "14.44.35207 at C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+      "Verdict": "PASS",
+      "Note": "All installed: 14.44.35207(_MSC_VER 1944)"
+    },
+    {
+      "Area": "MSVC",
+      "Item": "VsInstall to pass",
+      "Value": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools",
+      "Verdict": "INFO",
+      "Note": "Pass this via -VsInstall so the newest VS 18 is not picked automatically"
+    },
+    {
+      "Area": "MSVC",
+      "Item": "Windows SDK",
+      "Value": "10.0.26100.0",
+      "Verdict": "PASS",
+      "Note": "Required by cl.exe"
+    },
+    {
+      "Area": "Build",
+      "Item": "cmake",
+      "Value": "D:\\CMake\\bin\\cmake.exe :: cmake version 4.3.0",
+      "Verdict": "PASS",
+      "Note": "audio.cpp needs >= 3.20; >= 3.24 only matters for -CudaArchitectures native"
+    },
+    {
+      "Area": "Build",
+      "Item": "ninja",
+      "Value": "D:\\mt-tool\\runtime\\Scripts\\ninja.exe :: 1.13.0.git.kitware.jobserver-pipe-1",
+      "Verdict": "PASS",
+      "Note": ""
+    },
+    {
+      "Area": "Build",
+      "Item": "git",
+      "Value": "D:\\Git\\bin\\git.exe :: git version 2.41.0.windows.1",
+      "Verdict": "PASS",
+      "Note": ""
+    },
+    {
+      "Area": "Disk",
+      "Item": "Drive C:",
+      "Value": "5.2 GB free",
+      "Verdict": "INFO",
+      "Note": ""
+    },
+    {
+      "Area": "Disk",
+      "Item": "Target drive D:",
+      "Value": "31.5 GB free",
+      "Verdict": "PASS",
+      "Note": "Budget: weights 2.7 GB (Q4_0) + source 0.1 GB + build tree 3-8 GB + outputs"
+    },
+    {
+      "Area": "Disk",
+      "Item": "Drive E:",
+      "Value": "5.8 GB free",
+      "Verdict": "INFO",
+      "Note": ""
+    },
+    {
+      "Area": "Disk",
+      "Item": "HF cache drive",
+      "Value": "E:\\ComfyUI\\models\\LLM (drive E: 5.8 GB free)",
+      "Verdict": "WARN",
+      "Note": "Set HF_HOME into the project folder if this drive is tight"
+    },
+    {
+      "Area": "Python",
+      "Item": "python",
+      "Value": "D:\\Python\\Python312\\python.exe :: Python 3.12.10",
+      "Verdict": "PASS",
+      "Note": "hf CLI: D:\\mt-tool\\runtime\\Scripts\\hf.exe"
+    },
+    {
+      "Area": "Network",
+      "Item": "hf-mirror.com:443",
+      "Value": "reachable",
+      "Verdict": "PASS",
+      "Note": "Use HF_ENDPOINT=https://hf-mirror.com"
+    }
+  ]
+}

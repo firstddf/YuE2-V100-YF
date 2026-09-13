@@ -1,0 +1,20 @@
+{
+  "host": "127.0.0.1",
+  "port": 8080,
+  "backend": "cuda",
+  "device": 0,
+  "threads": 8,
+  "lazy_load": true,
+  "max_loaded_models": 1,
+  "log_request_body": false,
+  "models": [
+    {
+      "id": "yue2",
+      "family": "yue2",
+      "path": "D:/mt-tool/yue2-V100/models/Yue2-3B-GGUF",
+      "model_spec_override": "D:/mt-tool/yue2-V100/audio.cpp/model_specs/yue2.json",
+      "task": "gen",
+      "mode": "offline"
+    }
+  ]
+}

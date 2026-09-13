@@ -1,0 +1,167 @@
+diff --git a/include/engine/models/yue2/pipeline.h b/include/engine/models/yue2/pipeline.h
+index ee3b2f7..119058c 100644
+--- a/include/engine/models/yue2/pipeline.h
++++ b/include/engine/models/yue2/pipeline.h
+@@ -36,6 +36,9 @@ public:
+         uint64_t seed);
+     runtime::AudioBuffer decode_audio(const std::vector<float> & latents, int64_t frames);
+     runtime::AudioBuffer run(const Yue2Request & request);
++    // [yue2-V100 local patch] ABC score produced by the most recent run(); empty
++    // when the request used cot=off or supplied its own score.
++    std::string last_abc() const;
+     void release_runtime_graphs();
+ 
+ private:
+diff --git a/include/engine/models/yue2/tokenizer_text.h b/include/engine/models/yue2/tokenizer_text.h
+index 2119fd0..e4a94a9 100644
+--- a/include/engine/models/yue2/tokenizer_text.h
++++ b/include/engine/models/yue2/tokenizer_text.h
+@@ -18,6 +18,12 @@ public:
+ 
+     std::vector<int32_t> encode(const std::string & text) const;
+ 
++    // [yue2-V100 local patch] Inverse of encode(). Structural tokens (<abc>,
++    // </abc>, <music>, </music> and the other control tokens) carry no notation
++    // text and are skipped, which is what makes the generated ABC score
++    // recoverable as plain notation.
++    std::string decode(const std::vector<int32_t> & ids) const;
++
+ private:
+     std::shared_ptr<llama_tokenizer_vendor::BpeVocabulary> vocab_;
+ };
+diff --git a/src/models/yue2/pipeline.cpp b/src/models/yue2/pipeline.cpp
+index 713dd62..24228a0 100644
+--- a/src/models/yue2/pipeline.cpp
++++ b/src/models/yue2/pipeline.cpp
+@@ -132,6 +132,12 @@ public:
+         (void) this->nar_graph_arena_bytes;
+     }
+ 
++    // [yue2-V100 local patch] Score from the most recent generate_semantic();
++    // run() copies it here so the session can expose it as the text output.
++    const std::string & last_abc() const { return last_abc_; }
++
++    std::string last_abc_;
++
+     Yue2Plan plan(const Yue2Request & request) {
+         Yue2Plan out;
+         out.cot = request.cot;
+@@ -165,6 +171,10 @@ public:
+             out.plan.abc_ids = ar->generate(out.plan.prefix, abc_window(request.generation), request.seed);
+             engine::debug::timing_log_scalar("yue2.semantic.abc_generate_ms", engine::debug::elapsed_ms(abc_start));
+             out.plan.truncated = static_cast<int64_t>(out.plan.abc_ids.size()) >= request.generation.abc.max_tokens;
++            // [yue2-V100 local patch] Recover the notation; otherwise the score is
++            // dropped here and only its token ids survive.
++            out.plan.abc = tokenizer.decode(out.plan.abc_ids);
++            engine::debug::timing_log_scalar("yue2.semantic.abc_text_bytes", out.plan.abc.size());
+             out.plan.prefix.insert(out.plan.prefix.end(), out.plan.abc_ids.begin(), out.plan.abc_ids.end());
+             out.plan.prefix.push_back(kAbcEndToken);
+             out.plan.prefix.push_back(kMusicStartToken);
+@@ -312,6 +322,7 @@ public:
+         engine::debug::timing_log_scalar("yue2.plan_ms", engine::debug::elapsed_ms(plan_start, Clock::now()));
+         const auto semantic_start = Clock::now();
+         auto semantic = generate_semantic(request, std::move(planned));
++        last_abc_ = semantic.plan.abc;  // [yue2-V100 local patch]
+         engine::debug::timing_log_scalar("yue2.semantic_ms", engine::debug::elapsed_ms(semantic_start, Clock::now()));
+         const auto nar_start = Clock::now();
+         auto latents = synthesize_latents(semantic, request.generation, request.nar_noise, request.seed);
+@@ -459,6 +470,10 @@ runtime::AudioBuffer Yue2PipelineRuntime::run(const Yue2Request & request) {
+     return impl_->run(request);
+ }
+ 
++std::string Yue2PipelineRuntime::last_abc() const {
++    return impl_->last_abc();
++}
++
+ void Yue2PipelineRuntime::release_runtime_graphs() {
+     impl_->release_runtime_graphs();
+ }
+diff --git a/src/models/yue2/session.cpp b/src/models/yue2/session.cpp
+index 234fe61..9a8a248 100644
+--- a/src/models/yue2/session.cpp
++++ b/src/models/yue2/session.cpp
+@@ -232,6 +232,12 @@ runtime::TaskResult Yue2Session::run(const runtime::TaskRequest & request) {
+     const auto parsed = parse_yue2_request(request, assets_->config.generation);
+     runtime::TaskResult result;
+     result.audio_output = pipeline_->run(parsed);
++    // [yue2-V100 local patch] Expose the generated ABC score as the task text
++    // output so the CLI --text-out and the HTTP API can return editable
++    // notation. Empty for cot=off and for externally supplied scores.
++    if (const std::string abc = pipeline_->last_abc(); !abc.empty()) {
++        result.text_output = runtime::Transcript{abc, {}};
++    }
+     engine::debug::timing_log_scalar("session.wall_ms", engine::debug::elapsed_ms(wall_start, Clock::now()));
+     return result;
+ }
+diff --git a/src/models/yue2/tokenizer_text.cpp b/src/models/yue2/tokenizer_text.cpp
+index 56d5b96..5ee0121 100644
+--- a/src/models/yue2/tokenizer_text.cpp
++++ b/src/models/yue2/tokenizer_text.cpp
+@@ -12,6 +12,7 @@
+ #include <sstream>
+ #include <stdexcept>
+ #include <string>
++#include <unordered_map>
+ 
+ namespace engine::models::yue2 {
+ namespace {
+@@ -62,6 +63,38 @@ std::string map_token_bytes(const std::string & bytes) {
+     return mapped;
+ }
+ 
++// [yue2-V100 local patch] Inverse of map_token_bytes(): the tiktoken vocabulary
++// stores each byte as a UTF-8-encoded code point, so decoding has to fold those
++// code points back into their original bytes. The reverse table is built from
++// the very mapping encode() uses, so the two cannot drift apart.
++std::string unmap_token_bytes(const std::string & mapped) {
++    static const std::unordered_map<std::string, char> reverse = [] {
++        std::unordered_map<std::string, char> table;
++        for (int value = 0; value < 256; ++value) {
++            table.emplace(unicode_byte_to_utf8(static_cast<uint8_t>(value)), static_cast<char>(value));
++        }
++        return table;
++    }();
++
++    std::string bytes;
++    size_t offset = 0;
++    while (offset < mapped.size()) {
++        const auto lead = static_cast<unsigned char>(mapped[offset]);
++        size_t length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1;
++        if (offset + length > mapped.size()) {
++            length = 1;
++        }
++        const auto found = reverse.find(mapped.substr(offset, length));
++        if (found == reverse.end()) {
++            bytes.append(mapped, offset, length);
++        } else {
++            bytes.push_back(found->second);
++        }
++        offset += length;
++    }
++    return bytes;
++}
++
+ std::string pair_key(const std::string & left, const std::string & right) {
+     std::string key = left;
+     key.push_back('\0');
+@@ -150,4 +183,20 @@ std::vector<int32_t> Yue2TextTokenizer::encode(const std::string & text) const {
+     return vendor::tokenize_bpe(*vocab_, text, true);
+ }
+ 
++std::string Yue2TextTokenizer::decode(const std::vector<int32_t> & ids) const {
++    std::string bytes;
++    bytes.reserve(ids.size() * 2);
++    for (const int32_t id : ids) {
++        const auto found = vocab_->id_to_token.find(id);
++        if (found == vocab_->id_to_token.end()) {
++            continue;
++        }
++        if ((found->second.attr & vendor::TOKEN_ATTR_CONTROL) != 0) {
++            continue;
++        }
++        bytes += unmap_token_bytes(found->second.text);
++    }
++    return bytes;
++}
++
+ }  // namespace engine::models::yue2

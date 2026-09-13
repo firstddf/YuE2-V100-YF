@@ -1,0 +1,27 @@
+# 行尾策略
+#
+# gitattributes 的规则是**后面的覆盖前面的** —— 所以"更具体的例外"必须写在**后面**。
+# 第一版把 *.patch -text 写在前面、* text=auto 写在后面,结果 -text 被覆盖,
+# 补丁被规范化成 LF(用 git ls-files --eol 才看出来:attr 显示的是 text=auto 而不是 -text)。
+#
+# 为什么这件事致命:*0001* 补丁的上下文行本身是 CRLF(目标 fattn.cu 是 CRLF 文件)。
+# 一旦被规范成 LF,再对 CRLF 的源文件 git apply 就会失败 —— 用户拿到的是坏补丁。
+
+# 1) 默认:文本一律 LF
+#    * 补丁的目标文件是 LF,补丁本身也应是 LF —— 一致才 apply 得上
+#    * Python / pwsh 7 都能正常吃 LF 脚本
+#    * 避免 Windows 上 core.autocrlf 造成的整仓行尾漂移
+* text=auto eol=lf
+
+# 2) 例外(必须写在最后才会生效):补丁不做任何行尾转换
+#    patch 里的 CRLF/LF 是数据的一部分,不是"文本换行风格"。
+*.patch -text
+
+# 3) 二进制不要碰
+*.wav binary
+*.gguf binary
+*.exe binary
+*.dll binary
+*.safetensors binary
+*.png binary
+*.jpg binary

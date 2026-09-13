@@ -1,0 +1,71 @@
+yue2-V100 —— 第三方组件归属与改动声明
+======================================
+
+**本仓库只分发代码,不包含任何模型权重。** 权重许可与获取方式见 WEIGHTS.md。
+
+本项目以 GPL-3.0-or-later 授权(见 LICENSE),但它**构建于**下列第三方组件之上。
+这些组件的许可与版权归各自作者所有,不因本项目的许可而改变。
+
+
+一、audio.cpp(Apache License 2.0)
+----------------------------------
+
+    上游   https://github.com/0xShug0/audio.cpp
+    分支   dev
+    提交   87544b57242f52c7e7d3dee5766fe82eacf6a321
+    版权   Copyright 2026 ShugoAI LLC
+    许可   Apache License, Version 2.0
+
+本仓库**不包含** audio.cpp 源码。用 `scripts/fetch-audio-cpp.ps1` 拉取上述精确提交,
+再用 `patches/` 里的补丁打上本项目的改动 —— 这两步合起来就是 LICENSE 所指的
+Corresponding Source 中属于第三方的那部分。
+
+### 改动声明(Apache-2.0 §4(b) 要求)
+
+本项目的构建**修改了** audio.cpp 的 6 个文件,合计 +90 / -1 行。补丁原件在 `patches/`:
+
+| 补丁 | 文件 | 改动 |
+|---|---|---|
+| `0001-fattn-volta-tile-fallback.patch` | `external/ggml/src/ggml-cuda/fattn.cu` | Volta 上闪存注意力回退到通用瓦片内核,避开未实现的 16 列 MMA 路径 |
+| `0002-yue2-abc-export.patch` | `include/engine/models/yue2/pipeline.h`<br>`include/engine/models/yue2/tokenizer_text.h`<br>`src/models/yue2/pipeline.cpp`<br>`src/models/yue2/session.cpp`<br>`src/models/yue2/tokenizer_text.cpp` | 导出 YuE2 生成的 ABC 乐谱(上游只丢弃它) |
+
+改动细节与根因见 `docs/v100-patches.md`。除这 6 个文件外,audio.cpp 保持上游原样。
+
+> 依据 Apache-2.0 §4(b),分发含改动的衍生作品必须显著声明"这些文件被改过"。
+> 本文件即该声明;`patches/` 是改动的精确形式。
+
+
+二、audio.cpp 内含的第三方组件
+------------------------------
+
+以下组件随 audio.cpp 源码一并获取(本仓库不包含),许可归各自作者:
+
+| 组件 | 许可 |
+|---|---|
+| ggml | MIT License (c) 2023-2026 The ggml authors |
+| cJSON | MIT License (c) 2009-2017 Dave Gamble and cJSON contributors |
+| cpp-httplib | MIT License (c) 2017 yhirose |
+| libyaml | MIT License (c) 2017-2020 Ingy döt Net / (c) 2006-2016 Kirill Simonov |
+| sentencepiece | Apache License 2.0 |
+
+**eSpeak-ng(GPL-3.0-or-later)未被启用**:audio.cpp 的 `AUDIOCPP_STATIC_ESPEAK`
+默认为 `OFF`,本项目保持默认。因此构建产物不含该组件。
+
+以上许可均与 GPL-3.0-or-later 兼容,故本项目可以 GPL-3.0-or-later 分发整体作品。
+
+
+三、模型权重(不在本仓库,许可各不相同)
+----------------------------------------
+
+**本仓库不分发任何模型权重。** 权重由用户自行下载,各自的许可由用户自行遵守。
+完整清单与获取地址见 WEIGHTS.md。**其中 MuScriptor 权重是 CC-BY-NC-4.0(禁止商用)**;
+本项目实际使用的 YuE2 权重**没有任何许可声明**(详见 WEIGHTS.md 的说明)。
+
+
+四、本项目自身
+--------------
+
+`app/`、`scripts/`、`docs/`、`skills/`、`patches/` 及本文件由 yue2-V100 项目作者编写,
+以 GPL-3.0-or-later 授权,Copyright (C) 2026 <版权持有人>。
+
+> 发布前请把上面的 `<版权持有人>` 换成你的名字或帐号。
