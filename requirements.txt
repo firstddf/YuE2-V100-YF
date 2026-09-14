@@ -1,7 +1,7 @@
 # yue2-V100 运行依赖(服务 + 界面 + 参考曲分析)
 #
 # 版本是本机**实测通过**的那一套(Windows / Python 3.12.10)。
-# 只有 8 个直接依赖;librosa 会带进 scipy / numba 等,装完约 300 MB。
+# 只有 9 个直接依赖;librosa 会带进 scipy / numba 等,装完约 300 MB。
 #
 # 装法:
 #   <你的 Python>\python.exe -m pip install -r requirements.txt

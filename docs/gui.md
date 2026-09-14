@@ -17,7 +17,10 @@
 app/yue2_service.py    HTTP 服务(默认 127.0.0.1:1414):任务队列 / 进度 / 历史 / 乐谱
 app/abc_jianpu.py      ABC 记谱法 → 简谱(HTML 渲染 / 纯文本导出)
 app/gui.py             Gradio 中文前端(默认 127.0.0.1:7860)
-scripts/start-gui.ps1  一键启停
+start.bat / stop.bat   **一键启停**(双击即可,纯 ASCII 瘦启动器)
+scripts/launch.ps1     体检 + 启动(中文输出都在这里)
+scripts/open-when-ready.ps1  轮询 7860 直到连得上,再开浏览器
+scripts/start-gui.ps1  真正起进程的那个
 scripts/abc-to-jianpu.py   ABC → 简谱 .txt 导出 / 批量检查
 scripts/analyze-abc.py 统计乐谱各声部的音符/休止符比例(辅助分析,不能判断有无演唱)
 scripts/asr-check.py   用 whisper-small 转写对比(判断有无唱词的客观手段)
@@ -31,8 +34,37 @@ scripts/test-style-tags.py 风格标签逻辑单测
 
 ## 启动 / 停止
 
+### 一键(推荐)
+
+**双击根目录 `start.bat`**。体检 → 起服务 → 起界面 → 能连上才开浏览器。
+缺什么会当场说清缺什么、去哪儿补(而不是启动到一半抛一句看不懂的错)。
+
+**双击 `stop.bat`** 停止:杀 1414 / 7860 的监听进程,再清掉残留的 `audiocpp_cli.exe` 释放显存。
+
+```bat
+start.bat -CheckOnly                          :: 只体检,不启动
+start.bat -NoBrowser                          :: 不自动开浏览器
+start.bat -ServicePort 1415 -GuiPort 7861     :: 换端口
+stop.bat                                      :: 停止
+```
+
+> 为什么中文不写在 `.bat` 里:cmd.exe 按控制台代码页(936 / 65001)解码批处理,
+> 同一份中文在不同机器上一半是乱码。`.bat` 只保留 ASCII 的"找 pwsh → 转交"逻辑,
+> 其余全在 `scripts\launch.ps1`(PowerShell 读写 UTF-8 无此问题)。
+> 两个 `.bat` 优先 `pwsh`,没有则退回系统自带的 `powershell` 5.1;
+> `launch.ps1` 的语法**刻意避开** PS7 专有的 `?:` / `??`。
+
+体检的 6 项:Python(3.10+)、9 个直接依赖、引擎 `audiocpp_cli.exe`、
+CUDA 运行库(`cudart64_12` / `cublas64_12`;**只需这两个**,`cublasLt64_12` 660 MB 不在导入表里)、
+NVIDIA 驱动(`nvcuda.dll`)、模型权重(YuE2 必需 / MuScriptor 可选)。
+
+引擎 exe 按 `build\bin\Release` → `bin` → `build\bin` 顺序找:
+源码树在第一个,发布包在第二个。服务端同理(`_find_engine()`,可用 `YUE2_ENGINE` 覆盖)。
+
+### 手动(调试用)
+
 ```powershell
-# 启动(服务 + 界面)
+# 启动(服务 + 界面),跳过体检
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-gui.ps1
 
 # 停止

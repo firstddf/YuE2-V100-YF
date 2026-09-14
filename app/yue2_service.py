@@ -31,7 +31,28 @@ from pathlib import Path
 from typing import Any, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-ENGINE = ROOT / "build" / "bin" / "Release" / "audiocpp_cli.exe"
+
+# 引擎 exe 的位置在两种布局下不一样,都要能找:
+#   * 源码树(自己编译):build\bin\Release\audiocpp_cli.exe —— CMake 的输出位置
+#   * 发布包(下载即用):bin\audiocpp_cli.exe —— make-release.ps1 的布局
+# 之前只认前者,发布包解压后会直接报"引擎找不到"。
+# YUE2_ENGINE 环境变量可显式覆盖。
+def _find_engine() -> Path:
+    override = os.environ.get("YUE2_ENGINE", "").strip()
+    if override:
+        return Path(override)
+    candidates = [
+        ROOT / "build" / "bin" / "Release" / "audiocpp_cli.exe",
+        ROOT / "bin" / "audiocpp_cli.exe",
+        ROOT / "build" / "bin" / "audiocpp_cli.exe",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]          # 都不存在时返回常见位置,由 preflight 报错
+
+
+ENGINE = _find_engine()
 MODEL_DIR = ROOT / "models" / "Yue2-3B-GGUF"
 JOBS_DIR = ROOT / "output" / "gui" / "jobs"
 LOGS_DIR = ROOT / "logs"

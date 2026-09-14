@@ -17,7 +17,7 @@
 | **编入的模型家族** | **`yue2,muscriptor`** —— 生成 + 参考曲转谱 |
 | 环境检测 | **READY WITH WARNINGS**(PASS 16 / WARN 3 / FAIL 0),见 `docs/preflight-plan.md` |
 | 本地补丁 | 2 处:`fattn.cu` 的 Volta 闪存注意力 bug + ABC 乐谱导出,见 `docs/v100-patches.md` |
-| **图形界面** | **自建中文 GUI,6 个页签**:`scripts\start-gui.ps1` → **http://127.0.0.1:7860**(服务 1414),见 `docs/gui.md` |
+| **图形界面** | **双击 `start.bat` 一键启动**(自检 → 起服务 → 开界面 → 开浏览器)→ **http://127.0.0.1:7860**(服务 1414),见 `docs/gui.md` |
 | **DSH 技能** | `skills\song-production\` —— 让 DSH 按固化流程与边界做歌,见 `docs/skill.md` |
 | 实测实时倍率 | 出歌 **1.4–2×**;转谱 **5.2–18.9×** |
 | 磁盘占用 | audio.cpp 204 MB + 构建 605 MB + 权重 4.7 GiB;D: 剩约 25 GB |
@@ -45,6 +45,8 @@ ggml          0.12.0 @ 87544b5 (与仓库 HEAD 一致)
 yue2-V100/
 ├─ README.md                  本文件(主文档;文档索引见 docs\README.md)
 ├─ CHANGELOG.md               版本变更(当前 0.1)
+├─ start.bat                  **一键启动**(双击即可,体检 → 起服务 → 起界面 → 开浏览器)
+├─ stop.bat                   **一键停止**(双击即可,杀 1414 / 7860 / 引擎进程)
 ├─ VERSION                    版本号
 ├─ audio.cpp/                 源码(dev @ 87544b5)+ 2 处本地补丁
 ├─ build/                     VS 2022 产物 → build\bin\Release\audiocpp_cli.exe
@@ -73,7 +75,9 @@ yue2-V100/
 │  ├─ dream-atmos.py          氛围后期链(朦胧 / 迷离 / 若即若离 / 轻抚)
 │  ├─ breath-vocals.py        气声 / 喘息实验
 │  ├─ gui-smoke-test.py       点击级测试(含简谱与历史试听)
-│  └─ start-gui.ps1           一键启停服务 + 界面
+│  ├─ launch.ps1              启动前的环境体检 + 启动(被根目录 start.bat / stop.bat 调用)
+│  ├─ open-when-ready.ps1     轮询 7860 直到能连上,再开浏览器(避免"无法连接")
+│  └─ start-gui.ps1           启停服务 + 界面(被 launch.ps1 调用,也可单独跑)
 ├─ examples/                  中文歌词、上游官方 melody.abc / score-jazz.abc、批量歌词、225 条标签词表
 ├─ results/                   检测报告、回归测试、参考曲画像 JSON
 ├─ models/                    Yue2-3B-GGUF(Q8_0 + VAE f16)+ MuScriptor-Small-GGUF(f32)
@@ -324,8 +328,34 @@ V: Vocal / V: Ins
 audio.cpp 自带的 WebUI 是给 60+ 模型族共用的通用界面,YuE2 在里面只有 22 行配置、
 没有中文翻译、也没有批量队列 / 阶段进度 / 乐谱导出。所以本项目自带一层服务 + 中文前端:
 
+### 一键启动
+
+**双击根目录的 `start.bat`**。它按顺序做四件事:
+
+1. **体检** —— Python、9 个依赖、引擎 exe、CUDA 运行库、NVIDIA 驱动、YuE2 / MuScriptor 权重。
+   缺什么当场说清缺什么、去哪儿补,而不是启动到一半抛一句看不懂的错。
+2. 起服务(1414),等 `/api/health` 真的通了才继续。
+3. 起界面(7860)。
+4. 轮询 7860,能连上了**才**开浏览器 —— 界面本身要十几秒才 listen,抢跑只会看到"无法连接"。
+
+关掉那个控制台窗口 = 停止;或**双击 `stop.bat`**(杀 1414 / 7860 / 残留的 `audiocpp_cli.exe`,释放显存)。
+
+```bat
+start.bat -CheckOnly      :: 只体检,不启动
+start.bat -NoBrowser      :: 不自动开浏览器
+start.bat -ServicePort 1415 -GuiPort 7861   :: 换端口
+stop.bat                  :: 停止
 ```
-scripts\start-gui.ps1          # 启动(服务 + 界面)
+
+> `start.bat` / `stop.bat` 本身只有 30 行,是**纯 ASCII**的瘦启动器 —— 中文全在
+> `scripts\launch.ps1` 里。原因:`.bat` 由 cmd.exe 按代码页(936 / 65001)解码,
+> 中文写进 `.bat` 在不同机器上会变成乱码;PowerShell 读写 UTF-8 没这个问题。
+> 两个 `.bat` 优先用 `pwsh`,没有就退回 Windows 自带的 `powershell` 5.1。
+
+### 手动启动(不给别人用,自己调试时)
+
+```
+scripts\start-gui.ps1          # 启动(服务 + 界面),不做体检
 scripts\start-gui.ps1 -Stop    # 停止
 ```
 

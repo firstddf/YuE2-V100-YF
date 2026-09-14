@@ -25,6 +25,16 @@
 | 🔍 **参考曲分析** | librosa 快速画像 / MuScriptor 音符级转谱;标签一键并入风格框 |
 | ❓ 说明与限制 | 全部实测边界 |
 
+### 启动
+
+- **双击 `start.bat` 一键启动**:环境体检 → 起服务(1414)→ 起界面(7860)→ 能连上才开浏览器。
+  缺什么当场说清缺什么、去哪儿补。双击 `stop.bat` 停止(顺带清残留的 `audiocpp_cli.exe`)。
+- `.bat` 只做**纯 ASCII 瘦启动器**,中文全在 `scripts/launch.ps1`:cmd.exe 按代码页解码 `.bat`,
+  中文写进去在不同机器上是乱码。优先 `pwsh`,没有退回 `powershell` 5.1。
+- 修复:`audiocpp_cli.exe` 路径**硬编码**成 `build\bin\Release\` —— 发布包布局下 exe 在 `bin\`。
+  服务端 `_find_engine()` 与 `start-gui.ps1` 现在都按
+  `build\bin\Release` → `bin` → `build\bin` 顺序解析(服务端还支持 `YUE2_ENGINE` 覆盖)。
+
 ### 生成
 
 - 时长**没有参数**,由歌词长度决定;**实测精确换算 1 秒 = 25 语义 token**(7 组全部命中)。

@@ -31,7 +31,7 @@
 [CmdletBinding()]
 param(
     [string] $CudaRoot = 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8',
-    [string] $OutDir   = (Join-Path $PSScriptRoot '..\..\release'),
+    [string] $OutDir   = (Join-Path $PSScriptRoot '..\release'),
     # 第二个产物:已打补丁的 audio.cpp 源码。默认生成 —— 它同时是
     # "想自己编译的人要的东西"和"GPL 要求的 Corresponding Source"。
     [switch] $SkipAudioCppSource,
@@ -66,7 +66,8 @@ foreach ($d in @('app', 'scripts', 'docs', 'examples', 'skills', 'patches', 'res
     }
 }
 foreach ($f in @('README.md', 'CHANGELOG.md', 'VERSION', 'LICENSE', 'NOTICE', 'WEIGHTS.md',
-                 'requirements.txt', '.gitignore', 'server.json')) {
+                 'requirements.txt', '.gitignore', 'server.json', '.gitattributes',
+                 'start.bat', 'stop.bat')) {
     Add-Plan $f (Join-Path $root $f)
 }
 
@@ -129,7 +130,7 @@ yue2-V100 v$version —— 下载即用包(V100 / SM70 专用)
 目录
 ----
   app\ scripts\ docs\ skills\ patches\   本项目的代码与文档
-  requirements.txt                        Python 依赖(8 个直接依赖)
+  requirements.txt                        Python 依赖(9 个直接依赖)
   bin\audiocpp_cli.exe                    已编译的引擎(29 MB)
   bin\cudart64_12.dll  bin\cublas64_12.dll   引擎实际导入的 CUDA 运行库
   bin\CUDA-EULA.txt                       NVIDIA CUDA 许可(再分发要求随附)
@@ -145,8 +146,14 @@ yue2-V100 v$version —— 下载即用包(V100 / SM70 专用)
 
 怎么跑
 ------
-  python scripts\start-gui.ps1      # 或用 pwsh 跑
-  然后打开 http://127.0.0.1:7860
+  上面 3 项准备好之后:
+
+  **双击 start.bat**  —— 它会先体检(缺什么就直说),再启动服务和界面,
+  浏览器自动打开 http://127.0.0.1:7860。
+  关掉那个黑色控制台窗口即可停止;或双击 stop.bat。
+
+  体检但不启动:    start.bat -CheckOnly
+  不想自动开浏览器: start.bat -NoBrowser
 
 许可与对应源码(GPLv3)
 ----------------------

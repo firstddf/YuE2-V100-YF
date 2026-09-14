@@ -17,6 +17,12 @@
 #    patch 里的 CRLF/LF 是数据的一部分,不是"文本换行风格"。
 *.patch -text
 
+# 2b) .bat 必须是 CRLF
+#    cmd.exe 对纯 LF 的批处理在 if/goto 块上有已知的解析毛病(把下一行当成
+#    上一次命令的续行)。默认的 eol=lf 会给出一份"能打开但行为诡异"的 bat。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 # 3) 二进制不要碰
 *.wav binary
 *.gguf binary

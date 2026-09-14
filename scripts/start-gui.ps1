@@ -60,8 +60,19 @@ if ($Stop) {
 }
 
 if (-not (Test-Path $Python)) { throw "Python not found: $Python" }
-if (-not (Test-Path (Join-Path $root 'build\bin\Release\audiocpp_cli.exe'))) {
-    throw 'Engine missing - build audiocpp_cli first (see README).'
+
+# Engine lives in different places depending on layout:
+#   source tree -> build\bin\Release\audiocpp_cli.exe
+#   release zip -> bin\audiocpp_cli.exe
+# Same resolution order as yue2_service.py's _find_engine(); keep the two in sync.
+$engine = $null
+foreach ($e in @((Join-Path $root 'build\bin\Release\audiocpp_cli.exe'),
+                  (Join-Path $root 'bin\audiocpp_cli.exe'),
+                  (Join-Path $root 'build\bin\audiocpp_cli.exe'))) {
+    if (Test-Path $e) { $engine = $e; break }
+}
+if (-not $engine) {
+    throw 'audiocpp_cli.exe not found (looked in build\bin\Release, bin, build\bin). Build it, or use the release zip.'
 }
 
 New-Item -ItemType Directory -Path $logs -Force | Out-Null

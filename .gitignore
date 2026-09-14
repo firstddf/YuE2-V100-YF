@@ -22,6 +22,11 @@ logs/
 # ── HF 缓存 ──────────────────────────────────────────────────────
 cache/
 
+# ── 发布包:100 MB 级二进制,只进 GitHub Release,绝不进 git 历史 ──
+# 由 scripts\make-release.ps1 生成。里面有 bin\audiocpp_cli.exe 和 CUDA 运行库,
+# 一旦提交,仓库体积就再也回不去了(rebase 也删不掉已经推上去的 blob)。
+release/
+
 # ── Python ───────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
