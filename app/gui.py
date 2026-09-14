@@ -122,6 +122,9 @@ APP_VERSION = "0.1"
 # 模型默认值换算出来的边界,用作界面默认。
 DEFAULT_MAX_SECONDS = 9000 // TOKENS_PER_SECOND   # 360 秒 = 6 分钟
 DEFAULT_MIN_SECONDS = 200 // TOKENS_PER_SECOND    # 8 秒
+# 官方推荐的 NAR 步数。给 32 而不是 8:8 步能出结果但细节明显更糙,
+# 而这个参数正是"越大音质越好、越慢"的那个,默认值不该让人先出一版差的。
+DEFAULT_STEPS = 32
 
 TEMPLATE = """[Verse]
 夜色落在窗台上
@@ -431,6 +434,37 @@ class Api:
         return r.json()
 
 
+def fmt_hms(seconds: Any) -> str:
+    """秒 → "X 分 YY 秒"。
+
+    界面上的时长全是秒(时长滑块、指标里的 274.8 s),但人判断"这首多长"
+    靠的是分秒。凡是显示时长的地方都过这个函数。
+    """
+    try:
+        total = int(round(float(seconds)))
+    except (TypeError, ValueError):
+        return str(seconds)
+    if total < 60:
+        return f"{total} 秒"
+    return f"{total // 60} 分 {total % 60:02d} 秒"
+
+
+def dur_reference(min_s: Any, max_s: Any) -> str:
+    """把"最短/最长秒数"翻成一句人话 —— 否则得自己拿 360 去除 60。
+
+    不到 1 分钟时两种写法一样,就不再重复括号里的秒数。
+    """
+    def one(v: Any) -> str:
+        h = fmt_hms(v)
+        try:
+            plain = f"{int(v)} 秒"
+        except (TypeError, ValueError):
+            return h
+        return h if h == plain else f"{h}({plain})"
+
+    return f"**参考曲长**:最短 **{one(min_s)}** · 最长 **{one(max_s)}**"
+
+
 def fmt_metrics(m: dict[str, Any]) -> str:
     if not m:
         return "_尚无指标_"
@@ -438,7 +472,7 @@ def fmt_metrics(m: dict[str, Any]) -> str:
     if m.get("wall_s") is not None:
         bits.append(f"生成耗时 **{m['wall_s']} s**")
     if m.get("audio_s") is not None:
-        bits.append(f"音频时长 **{m['audio_s']} s**")
+        bits.append(f"音频时长 **{m['audio_s']} s**(约 {fmt_hms(m['audio_s'])})")
     if m.get("rtf") is not None:
         bits.append(f"RTF **{m['rtf']}**")
     if m.get("x_realtime") is not None:
@@ -721,18 +755,23 @@ def build_ui(api: Api) -> gr.Blocks:
                                 info="提供 .abc 输入时必须选 melody 或 full")
                             seed = gr.Number(value=831001, label="随机种子", precision=0)
                         with gr.Row():
-                            steps = gr.Slider(1, 64, value=8, step=1, label="NAR 步数",
-                                              info="越大音质越好、越慢;官方默认 32")
+                            steps = gr.Slider(1, 64, value=DEFAULT_STEPS, step=1, label="NAR 步数",
+                                              info="越大音质越好、越慢;官方推荐 32")
                             cfg = gr.Slider(0.0, 5.0, value=1.01, step=0.01, label="语义引导强度")
 
                         gr.Markdown("#### 4. 时长控制")
                         with gr.Row():
                             dur_min = gr.Slider(2, 120, value=DEFAULT_MIN_SECONDS, step=1,
                                                 label="最短时长(秒) · 下限",
-                                                info="= semantic_min_tokens ÷ 25")
+                                                info="8 秒 = 0 分 08 秒;= semantic_min_tokens 200 ÷ 25")
                             dur_max = gr.Slider(15, 360, value=DEFAULT_MAX_SECONDS, step=5,
                                                 label="最长时长(秒) · 硬上限",
-                                                info="= semantic_max_tokens ÷ 25")
+                                                info="360 秒 = 6 分 00 秒;= semantic_max_tokens 9000 ÷ 25")
+                        # 滑块只给秒,人判断曲长靠分秒 —— 拖动时实时换算
+                        dur_ref = gr.Markdown(
+                            dur_reference(DEFAULT_MIN_SECONDS, DEFAULT_MAX_SECONDS))
+                        dur_min.input(dur_reference, inputs=[dur_min, dur_max], outputs=dur_ref)
+                        dur_max.input(dur_reference, inputs=[dur_min, dur_max], outputs=dur_ref)
                         gr.Markdown(
                             "> **时长没有直接参数。** YuE2 一直生成到自然结束(EOS),"
                             "**实际时长主要由歌词长度决定**,上面两个滑块只是边界。\n"
@@ -911,7 +950,7 @@ def build_ui(api: Api) -> gr.Blocks:
                         ))
                         with gr.Row():
                             b_cot = gr.Radio(choices=["off", "melody", "full"], value="off", label="规划路线")
-                            b_steps = gr.Slider(1, 64, value=8, step=1, label="NAR 步数")
+                            b_steps = gr.Slider(1, 64, value=DEFAULT_STEPS, step=1, label="NAR 步数")
                             b_seed = gr.Number(value=831001, label="随机种子", precision=0)
                         b_go = gr.Button("📦 排队生成", variant="primary")
                     with gr.Column(scale=2):
