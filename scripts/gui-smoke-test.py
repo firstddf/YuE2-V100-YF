@@ -6,6 +6,8 @@
   1. 界面输入项的接线是否正确(参数顺序/数量)
   2. 时长上限是否真的生效(设 20 秒,输出应明显短于默认的 40 秒上下)
   3. 历史试听能否取到音频(下拉与表格行点击共用同一个 /load 端点)
+  4. 历史参数面板能否取到种子/步数
+  5. 批量导出是否真的写出"音频 + info.json"并打包出 zip(跑完会删掉测试批次)
 
 用法:runtime\\Scripts\\python.exe scripts\\gui-smoke-test.py
 """
@@ -13,7 +15,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -184,6 +188,44 @@ def main() -> int:
                     ok = False
     except Exception as exc:  # noqa: BLE001
         print(f"FAIL: 历史试听检查出错: {type(exc).__name__}: {exc}")
+        ok = False
+
+    # ---- 批量导出:一首一个文件夹 + 批次 zip。跑完把产物删掉,不留垃圾。
+    try:
+        jobs = json.load(urllib.request.urlopen(f"{SERVICE}/api/jobs?limit=100", timeout=15))["jobs"]
+        target = next((j for j in jobs if j.get("has_audio")), None)
+        print("\n导出检查")
+        if not target:
+            print("FAIL: 没有可导出的任务")
+            ok = False
+        else:
+            batch = f"_smoke_{int(time.time())}"
+            body = json.dumps({"ids": [target["id"]], "name": batch}).encode()
+            req = urllib.request.Request(f"{SERVICE}/api/export", data=body,
+                                         headers={"Content-Type": "application/json"})
+            r = json.load(urllib.request.urlopen(req, timeout=300))
+            folder = Path(r["dir"])
+            zip_path = Path(r["zip"])
+            song_dirs = [d for d in folder.iterdir() if d.is_dir()]
+            print(f"  批次 {r['name']}:{r['count']} 首,zip {r['bytes'] / 1024 / 1024:.2f} MB")
+            if song_dirs:
+                got = sorted(p.name for p in song_dirs[0].iterdir())
+                print(f"  单曲文件夹 {song_dirs[0].name}:{', '.join(got)}")
+                # info.json 是这次新增的关键产物 —— 指标本来只活在内存解析里
+                need = {"audio.wav", "info.json"}
+                if need <= set(got) and zip_path.is_file():
+                    print("PASS: 导出含音频 + info.json,且 zip 已生成")
+                else:
+                    print(f"FAIL: 导出内容不全,缺 {need - set(got)}")
+                    ok = False
+            else:
+                print("FAIL: 批次里没有单曲文件夹")
+                ok = False
+            shutil.rmtree(folder, ignore_errors=True)
+            zip_path.unlink(missing_ok=True)
+            print("  (已清理测试批次)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"FAIL: 导出检查出错: {type(exc).__name__}: {exc}")
         ok = False
 
     print("RESULT:", "PASS" if ok else "FAIL")

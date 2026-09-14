@@ -55,6 +55,12 @@ def _find_engine() -> Path:
 ENGINE = _find_engine()
 MODEL_DIR = ROOT / "models" / "Yue2-3B-GGUF"
 JOBS_DIR = ROOT / "output" / "gui" / "jobs"
+# 导出批次的落点。一个批次 = 一个目录 + 一个同名 zip。
+EXPORTS_DIR = ROOT / "output" / "exports"
+# 任务目录里可能出现的文件,导出时按这个顺序整组带走(有什么拿什么)。
+# 曲谱三件套不是每个任务都有 —— 只有 cot=melody/full 才会生成。
+EXPORT_FILES = ("audio.wav", "request.json", "run.log",
+                "score.abc", "score.jianpu.txt", "score.jianpu.html")
 LOGS_DIR = ROOT / "logs"
 EXAMPLES = ROOT / "examples"
 SCRIPTS = ROOT / "scripts"
@@ -259,6 +265,87 @@ class Yue2Service:
             self.order.append(job_id)
             count += 1
         return count
+
+    # ------------------------------------------------------------ export
+    def export(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """把选中的任务导出成"一首一个文件夹 + 一个批次 zip"。
+
+        两个不显然的决定:
+
+        * **指标要现写一份 `info.json`。** RTF / 音频时长 / tokens 是服务每次从
+          `run.log` 正则解析出来的,**磁盘上没有对应文件**。不写进去,导出的文件夹里
+          就只剩音频 + 请求 + 乐谱,事后无从知道当时跑得多快、生成了多长。
+        * **同名批次不覆盖**,顺延成 `_2` / `_3`。导出是用户的产物,
+          服务替人决定"覆盖哪一个"太危险;要删让用户自己删。
+        """
+        ids = payload.get("ids") or []
+        if not isinstance(ids, list) or not ids:
+            raise ValueError("没有选择要导出的任务")
+        if len(ids) > 200:
+            raise ValueError(f"一次最多导出 200 首(收到 {len(ids)})")
+
+        name = safe_batch_name(str(payload.get("name") or ""))
+        if not name:
+            name = "export_" + time.strftime("%Y%m%d_%H%M%S")
+
+        batch = EXPORTS_DIR / name
+        serial = 1
+        while batch.exists():
+            serial += 1
+            batch = EXPORTS_DIR / f"{name}_{serial}"
+        batch.mkdir(parents=True, exist_ok=False)
+
+        songs: list[dict[str, Any]] = []
+        problems: list[dict[str, str]] = []
+        for raw_id in ids:
+            job_id = str(raw_id)
+            job = self.jobs.get(job_id)
+            if not job:
+                problems.append({"id": job_id, "why": "任务不存在(可能已被删除)"})
+                continue
+            jobdir = JOBS_DIR / job.id
+            folder = batch / export_folder_name(job)
+            folder.mkdir(exist_ok=True)
+            copied: list[str] = []
+            for fname in EXPORT_FILES:
+                src = jobdir / fname
+                if src.is_file():
+                    shutil.copy2(src, folder / fname)
+                    copied.append(fname)
+            info = {
+                "id": job.id,
+                "created": job.created,
+                "created_str": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(job.created)),
+                "status": job.status,
+                "stage": job.stage,
+                "error": job.error,
+                "metrics": job.metrics,
+                "request": job.request,
+                "files": copied + ["info.json"],
+            }
+            (folder / "info.json").write_text(
+                json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
+            songs.append({"id": job.id, "folder": folder.name,
+                          "files": copied + ["info.json"],
+                          "has_audio": "audio.wav" in copied})
+            if "audio.wav" not in copied:
+                problems.append({"id": job.id, "why": "没有音频产物(失败或未跑完),已导出其余文件"})
+
+        if not songs:
+            shutil.rmtree(batch, ignore_errors=True)
+            raise ValueError("选中的任务一个都不存在,没有可导出的内容")
+
+        zip_path = Path(shutil.make_archive(str(batch), "zip", root_dir=str(batch)))
+        return {
+            "name": batch.name,
+            "dir": str(batch),
+            "zip": str(zip_path),
+            "zip_name": zip_path.name,
+            "bytes": zip_path.stat().st_size,
+            "count": len(songs),
+            "songs": songs,
+            "problems": problems,
+        }
 
     # ------------------------------------------------------------ analysis
     def analyze(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -624,6 +711,14 @@ def build_app(service: Yue2Service):
             # 409:GPU 被生成任务占着,不是请求本身有问题
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/export")
+    def export_jobs(payload: dict[str, Any]) -> dict[str, Any]:
+        """把选中的历史任务导出成"一首一个文件夹 + 一个批次 zip"。"""
+        try:
+            return service.export(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/api/jobs")
     def create_job(payload: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -721,6 +816,38 @@ def build_app(service: Yue2Service):
                 "total_lines": total, "path": str(path)}
 
     return app
+
+
+def export_folder_name(job: Job) -> str:
+    """导出的单曲文件夹名:`<YYYY-MM-DD_HHMM>_<任务id>`。
+
+    时间放前面是为了在资源管理器里**按文件名排序 = 按时间排序**;
+    后缀带 id 是因为同一分钟内可能生成多首,光靠时间会撞名。
+    """
+    return f"{time.strftime('%Y-%m-%d_%H%M', time.localtime(job.created))}_{job.id}"
+
+
+# Windows 文件名里不允许出现的字符。批次名是用户填的,不能让它拼出路径。
+_BAD_NAME_CHARS = '\\/:*?"<>|'
+
+
+def safe_batch_name(name: str) -> str:
+    """把界面上填的批次名清洗成**单个**目录名,拒绝路径穿越。
+
+    和 safe_log_path() 同样的理由:界面上能提交任意字符串。
+    返回空串表示"没填",由调用方自动命名 —— 那不是错误。
+    抛 ValueError,由路由转成 400,所以这里不依赖 fastapi。
+    """
+    name = (name or "").strip()
+    if not name:
+        return ""
+    if any(c in _BAD_NAME_CHARS for c in name) or any(c < " " for c in name):
+        raise ValueError('批次名不能包含 \\ / : * ? " < > | 或控制字符')
+    if name in (".", "..") or name.startswith(".") or name.endswith("."):
+        raise ValueError(f"非法的批次名:{name!r}")
+    if len(name) > 60:
+        raise ValueError(f"批次名太长(最多 60 个字符,收到 {len(name)})")
+    return name
 
 
 def safe_log_path(name: str) -> Path:

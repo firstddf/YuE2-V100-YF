@@ -95,6 +95,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-gui.ps1 -Stop
 | GET | `/api/logs` | **日志文件列表**(`logs\` 下,名字/大小/时间) |
 | GET | `/api/logs/{name}` | **读某个日志文件**(`?tail=N`,0 = 全部;只接受裸文件名,拒绝路径穿越) |
 | POST | `/api/analyze` | **参考曲分析**(`audio` + `level=basic\|full` + 可选 `bpm`) |
+| POST | `/api/export` | **批量导出**(`ids` + 可选 `name`);一首一个文件夹 + 一个批次 zip |
 
 `/api/analyze` 的两级:
 
@@ -442,6 +443,38 @@ GET /api/health   →  { ..., "jobs": 16, "restored_from_disk": 16 }
 
 > 文件落在 `output\gui\jobs\<任务id>\`:`audio.wav`、`score.abc`、`run.log`、`request.json`。
 > 想清理旧记录直接删对应目录即可;服务下次启动就不会再恢复它。
+
+### 批量导出(一首一个文件夹 + 批次 zip)
+
+历史页签底部:多选下拉(**可搜索**)+「全选 / 清空」+ 批次名 + 「📦 导出所选」。
+
+```
+output\exports\<批次名>\
+├─ 2026-09-14_1311_4be0ba17bd97\
+│   ├─ audio.wav            音频
+│   ├─ request.json         当时下发的风格 / 歌词 / 全部采样参数
+│   ├─ score.abc            乐谱原文(仅 cot=melody/full 才有)
+│   ├─ score.jianpu.txt     简谱纯文本(同上)
+│   ├─ run.log              引擎完整输出
+│   └─ info.json            ← 现生成的指标汇总
+└─ 2026-09-14_1330_5dfb58093e6b\
+output\exports\<批次名>.zip   整个批次打包,浏览器里点一下就能下载
+```
+
+**`info.json` 为什么必须现生成**:RTF / 音频时长 / 语义 tokens 这些指标是服务每次用正则从
+`run.log` 里**解析**出来的,**磁盘上没有对应文件**。不写进去,导出的文件夹里就只剩音频 + 请求 +
+乐谱,事后无从知道当时跑得多快、生成了多长。内容 = 任务元信息 + `metrics` + `request` +
+实际带走的文件清单。
+
+**两个刻意的行为**:
+
+- **同名批次不覆盖**,顺延成 `_2`、`_3`。导出是用户的产物,服务替人决定"覆盖哪一个"太危险。
+- **没有音频的任务不静默丢掉** —— 失败或没跑完的任务照样导出它有的文件(日志往往正是要看的),
+  并在返回结果里列出问题(`problems`),界面会显示出来。
+
+批次名会被清洗成**单个目录名**(拒绝 `\ / : * ? " < > |`、控制字符、开头/结尾的点、超 60 字符),
+理由和 `safe_log_path()` 一样:界面上能提交任意字符串,不能让它拼出 `output\exports\` 之外的路径。
+非法名返回 400 并把原因说清楚。
 
 ## 乐谱:ABC 原文 + 自动换算的简谱
 

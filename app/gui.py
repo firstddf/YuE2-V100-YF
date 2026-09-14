@@ -165,7 +165,7 @@ NOTES = """
 |---|---|
 | 🎼 单首生成 | 一首一首调:风格、歌词、时长、乐谱、指标 |
 | 📦 批量出歌 | 多段歌词排队生成 |
-| 🗂 历史记录 | **按时间倒序**(新的在最上),有「时间」列;点表格任意一行即可试听;**选中后还能看到当时的种子 / 步数 / 全部参数,以及风格与歌词原文** |
+| 🗂 历史记录 | **按时间倒序**(新的在最上),有「时间」列;点表格任意一行即可试听;**选中后还能看到当时的种子 / 步数 / 全部参数,以及风格与歌词原文**;**可多选导出**(一首一个文件夹 + 批次 zip) |
 | 📜 **日志历史** | **出问题先来这里**:任务日志(引擎完整输出)+ `logs` 目录里的服务/构建日志 |
 | 🔍 **参考曲分析** | **分析一首参考曲,把它的特征变成可用的风格标签** |
 | ❓ 说明与限制 | 本页 |
@@ -425,6 +425,21 @@ class Api:
     def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
         """参考曲分析。level=full 会跑 MuScriptor,可能要十几秒,所以超时给足。"""
         r = requests.post(self._url("/api/analyze"), json=payload, timeout=1800)
+        if r.status_code >= 400:
+            try:
+                detail = r.json().get("detail", "")
+            except Exception:  # noqa: BLE001
+                detail = r.text[:200]
+            raise RuntimeError(detail or f"HTTP {r.status_code}")
+        return r.json()
+
+    def export(self, ids: list[str], name: str = "") -> dict[str, Any]:
+        """导出选中的历史任务。服务端写文件夹并打包 zip,返回两者路径。
+
+        超时给足:几十首 × 每首 4 MB 音频,复制 + 压缩要一会儿。
+        """
+        r = requests.post(self._url("/api/export"),
+                          json={"ids": list(ids), "name": name or ""}, timeout=1800)
         if r.status_code >= 400:
             try:
                 detail = r.json().get("detail", "")
@@ -1036,6 +1051,26 @@ def build_ui(api: Api) -> gr.Blocks:
                 h_abc = gr.Textbox(label="乐谱原文(ABC 记谱法)", lines=10,
                                    show_copy_button=True, interactive=False)
 
+                gr.Markdown("---")
+                gr.Markdown(
+                    "#### 📦 导出\n"
+                    "选中的每首歌存成**独立文件夹** —— 音频 / 生成参数 / 曲谱 / 引擎日志 / "
+                    "指标汇总(`info.json`),整个批次再打包成一个 zip 供下载。\n\n"
+                    "> 落点是 `output\\exports\\<批次名>\\`。批次名留空则按时间自动命名;"
+                    "**同名批次不会覆盖**,会顺延成 `_2`、`_3`。",
+                    elem_classes="hint")
+                h_exp_pick = gr.Dropdown(choices=[], value=[], multiselect=True,
+                                         label="选择要导出的歌曲(可多选、可搜索)",
+                                         interactive=True, filterable=True)
+                with gr.Row():
+                    h_exp_all = gr.Button("全选", size="sm")
+                    h_exp_none = gr.Button("清空", size="sm")
+                    h_exp_name = gr.Textbox(label="批次名(可留空)", scale=2,
+                                            placeholder="例如:云海之上_v1")
+                    h_exp_go = gr.Button("📦 导出所选", variant="primary")
+                h_exp_out = gr.Markdown()
+                h_exp_file = gr.File(label="批次 zip(点击下载)")
+
                 def job_choices() -> list[tuple[str, str]]:
                     out: list[tuple[str, str]] = []
                     for j in api.jobs():
@@ -1061,7 +1096,8 @@ def build_ui(api: Api) -> gr.Blocks:
                                      m.get("rtf", "-"), "有" if j.get("has_abc") else "无",
                                      req.get("seed", "-"), req.get("num_inference_steps", "-"),
                                      first[:36]])
-                    return rows, gr.update(choices=job_choices())
+                    return (rows, gr.update(choices=job_choices()),
+                            gr.update(choices=job_choices()))
 
                 def load(job_id):
                     if not job_id:
@@ -1084,14 +1120,40 @@ def build_ui(api: Api) -> gr.Blocks:
                     audio, jp, abc, params, style, lyrics = load(job_id)
                     return audio, jp, abc, job_id, params, style, lyrics
 
-                h_refresh.click(refresh, outputs=[h_table, h_pick])
+                def exp_select_all():
+                    return gr.update(value=[jid for _label, jid in job_choices()])
+
+                def exp_select_none():
+                    return gr.update(value=[])
+
+                def on_export(ids, name):
+                    if not ids:
+                        return "⚠️ 还没有选择歌曲 —— 先在上面那个框里选,或点「全选」。", None
+                    try:
+                        r = api.export(ids, name or "")
+                    except Exception as exc:  # noqa: BLE001
+                        return f"❌ 导出失败:{exc}", None
+                    lines = [f"✅ 已导出 **{r['count']}** 首",
+                             f"- 文件夹:`{r['dir']}`",
+                             f"- zip:`{r['zip_name']}`({r['bytes'] / 1024 / 1024:.1f} MB)"]
+                    if r.get("problems"):
+                        lines.append("- ⚠️ " + ";".join(
+                            f"`{p['id']}` {p['why']}" for p in r["problems"]))
+                    return "\n".join(lines), r["zip"]
+
+                h_exp_all.click(exp_select_all, outputs=h_exp_pick)
+                h_exp_none.click(exp_select_none, outputs=h_exp_pick)
+                h_exp_go.click(on_export, inputs=[h_exp_pick, h_exp_name],
+                               outputs=[h_exp_out, h_exp_file])
+
+                h_refresh.click(refresh, outputs=[h_table, h_pick, h_exp_pick])
                 h_pick.change(load, inputs=h_pick,
                               outputs=[h_audio, h_jp, h_abc, h_params, h_style, h_lyrics])
                 h_load.click(load, inputs=h_id,
                              outputs=[h_audio, h_jp, h_abc, h_params, h_style, h_lyrics])
                 h_table.select(on_row,
                                outputs=[h_audio, h_jp, h_abc, h_id, h_params, h_style, h_lyrics])
-                demo.load(refresh, outputs=[h_table, h_pick])
+                demo.load(refresh, outputs=[h_table, h_pick, h_exp_pick])
 
             # ------------------------------------------------ 日志历史
             with gr.Tab("📜 日志历史"):
