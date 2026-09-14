@@ -449,6 +449,19 @@ def fmt_hms(seconds: Any) -> str:
     return f"{total // 60} 分 {total % 60:02d} 秒"
 
 
+def hms_hint(seconds: Any) -> str:
+    """秒 → " (约 X 分 YY 秒)";不足 1 分钟返回空串。
+
+    此时 "20.0 s" 和 "约 20 秒" 是同一个信息,加括号只会变啰嗦。
+    """
+    try:
+        plain = f"{int(seconds)} 秒"
+    except (TypeError, ValueError):
+        return ""
+    h = fmt_hms(seconds)
+    return "" if h == plain else f"(约 {h})"
+
+
 def dur_reference(min_s: Any, max_s: Any) -> str:
     """把"最短/最长秒数"翻成一句人话 —— 否则得自己拿 360 去除 60。
 
@@ -472,7 +485,7 @@ def fmt_metrics(m: dict[str, Any]) -> str:
     if m.get("wall_s") is not None:
         bits.append(f"生成耗时 **{m['wall_s']} s**")
     if m.get("audio_s") is not None:
-        bits.append(f"音频时长 **{m['audio_s']} s**(约 {fmt_hms(m['audio_s'])})")
+        bits.append(f"音频时长 **{m['audio_s']} s**{hms_hint(m['audio_s'])}")
     if m.get("rtf") is not None:
         bits.append(f"RTF **{m['rtf']}**")
     if m.get("x_realtime") is not None:
