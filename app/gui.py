@@ -301,7 +301,7 @@ Mandarin, city pop, electric piano, groovy bass, live drums, warm female vocal, 
 
 | 内容 | 为什么必须英文 |
 |---|---|
-| `[Verse]` `[Chorus]` `[Bridge]` `[Outro]` `[Intro]` `[Instrumental]` | 模型词表里真实存在的段落标记 |
+| `[Verse]` `[Chorus]` `[Bridge]` `[Outro]` `[Intro]` `[Instrumental]` | 模型词表里真实存在的段落标记。**带后缀的(`[Verse 1 - 叙事铺垫]`、`[Pre-Chorus]`、`[Interlude]`)不在词表里**;实测后缀不会被唱出来,但也不保证被当成有效段落标记 —— 能用这 6 个就用这 6 个 |
 | 风格提示(如 `Mandarin, city pop, warm female vocal`) | 上游 `top_200_tags.json` 的标签词表 |
 | `off` / `melody` / `full` | 接口取值(界面已加中文说明) |
 
@@ -314,6 +314,7 @@ Mandarin, city pop, electric piano, groovy bass, live drums, warm female vocal, 
 | **气声 / 喘息** | 只能做到**"哼唱"**,没达标。真正的喘息要走语音模型混音 |
 | **段落留空** | **不会**让人声退场(实测 0:00–41 一直在唱,留空段被唱成无词长音) |
 | **人声退场** | 必须用 `[Instrumental]` 标记(实测这样做 0:00–30 是器乐) |
+| **歌词里的括号注释** | 整行 `(音乐:…)` `(Fade out)` 这类**实测不会被唱**(ASR 三字组命中 0/298)。但引擎**不剥括号**(提示词原样拼接),这纯是模型学来的习惯、**没有保证** —— 要确定性就自己删掉 |
 | **风格标签的影响** | 是**概率性**的 —— 同一提示词两次结果不同。想要某种效果请出多版挑 |
 | **ABC 乐谱** | 是模型的"**计划**",与产出音频关系是松的。别拿它判断唱得对不对 |
 | **若隐若现 / 若即若离** | 只能做**整轨**(ffmpeg 后期);人声单独进退需要分轨,**未编入** |
