@@ -66,6 +66,7 @@ Corresponding Source 中属于第三方的那部分。
 --------------
 
 `app/`、`scripts/`、`docs/`、`skills/`、`patches/` 及本文件由 yue2-V100 项目作者编写,
-以 GPL-3.0-or-later 授权,Copyright (C) 2026 <版权持有人>。
+以 GPL-3.0-or-later 授权,Copyright (C) 2026 firstddf。
 
-> 发布前请把上面的 `<版权持有人>` 换成你的名字或帐号。
+> 上游 audio.cpp 的版权归 ShugoAI LLC(Apache-2.0,见第一节),与本行无关;
+> 本行只声明本项目**自己写的那部分**的版权。
