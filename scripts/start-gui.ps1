@@ -30,6 +30,18 @@ $ErrorActionPreference = 'Continue'
 $root = Split-Path $PSScriptRoot -Parent
 $logs = Join-Path $root 'logs'
 
+# Work from the project root, whatever directory the caller was in.
+# Gradio refuses to serve a file that is outside the process cwd, the temp dir,
+# or launch(allowed_paths=...). gui.py hands it output\gui\preview\*.wav, so if
+# this script is started from anywhere else (e.g. running it from scripts\),
+# every generate call dies with:
+#   InvalidPathError: Cannot move ...\output\gui\preview\<id>.wav to the gradio
+#   cache dir because it was not created by the application or it is not located
+#   in ... the current working directory
+# start.bat hides this by doing `cd /d "%~dp0"` first; running this script
+# directly did not.
+Set-Location $root
+
 function Get-PortOwners([int] $port) {
     $out = @()
     foreach ($line in (netstat -ano | Select-String 'LISTENING')) {
@@ -86,6 +98,7 @@ if (-not $NoService) {
     # useless for live diagnosis.
     Start-Process -FilePath $Python `
         -ArgumentList @('-u', (Join-Path $root 'app\yue2_service.py'), '--port', $ServicePort) `
+        -WorkingDirectory $root `
         -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $logs 'service.out.log') `
         -RedirectStandardError  (Join-Path $logs 'service.err.log') | Out-Null
@@ -111,4 +124,8 @@ Write-Host ("  GUI      ->  http://127.0.0.1:{0}" -f $GuiPort) -ForegroundColor 
 Write-Host ("  service  ->  http://127.0.0.1:{0}" -f $ServicePort)
 Write-Host ("  stop     ->  pwsh -File .\scripts\start-gui.ps1 -Stop")
 Write-Host ''
+# Push-Location again on purpose: the child's cwd is what Gradio checks, so make
+# it explicit rather than relying on Set-Location syncing the process directory.
+Push-Location $root
 & $Python (Join-Path $root 'app\gui.py') --service "http://127.0.0.1:$ServicePort" --port $GuiPort
+Pop-Location

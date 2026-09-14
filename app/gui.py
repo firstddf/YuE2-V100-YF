@@ -162,7 +162,7 @@ NOTES = """
 |---|---|
 | 🎼 单首生成 | 一首一首调:风格、歌词、时长、乐谱、指标 |
 | 📦 批量出歌 | 多段歌词排队生成 |
-| 🗂 历史记录 | **按时间倒序**(新的在最上),有「时间」列;点表格任意一行即可试听 |
+| 🗂 历史记录 | **按时间倒序**(新的在最上),有「时间」列;点表格任意一行即可试听;**选中后还能看到当时的种子 / 步数 / 全部参数,以及风格与歌词原文** |
 | 📜 **日志历史** | **出问题先来这里**:任务日志(引擎完整输出)+ `logs` 目录里的服务/构建日志 |
 | 🔍 **参考曲分析** | **分析一首参考曲,把它的特征变成可用的风格标签** |
 | ❓ 说明与限制 | 本页 |
@@ -459,6 +459,32 @@ _GLYPH = "·▁▃▅█"
 def _glyph_row(values: list[int]) -> str:
     peak = (max(values) if values else 1) or 1
     return "".join(_GLYPH[min(int(v / peak * 4.999), 4)] if v else "·" for v in values)
+
+
+# 历史面板里参数的展示顺序。不在这里的键(以及 style/lyrics/abc)按原顺序追加或
+# 单独展示 —— 服务端会丢掉"界面没填"的项(数值 0 视为未设置),所以不同任务的
+# request 键不完全一样,不能假设固定的一张表。
+PARAM_ORDER = ("cot", "seed", "num_inference_steps", "cfg_scale",
+               "semantic_min_tokens", "semantic_max_tokens",
+               "abc_max_tokens", "abc_temperature",
+               "semantic_temperature", "semantic_repetition_penalty",
+               "temperature", "top_p", "top_k", "repetition_penalty",
+               "abc_file")
+
+
+def param_markdown(request: dict[str, Any]) -> str:
+    """把一次生成的参数摊成表格,给历史记录用。
+
+    和 fmt_diag() 的区别:那个只在失败时显示、且只列会触发校验错误的那几个;
+    这里列**全部**参数 —— 回看历史时最想知道的是"当时用的什么种子和步数"。
+    """
+    if not request:
+        return "> 这个任务没有 `request.json`(早期任务不保存请求),看不到参数。"
+    keys = [k for k in PARAM_ORDER if k in request]
+    keys += [k for k in request
+             if k not in PARAM_ORDER and k not in ("style", "lyrics", "abc")]
+    rows = "\n".join(f"| `{k}` | `{request[k]}` |" for k in keys)
+    return "| 参数 | 值 |\n|---|---|\n" + (rows or "| _(空)_ | |")
 
 
 def fmt_diag(err: str, request: dict[str, Any], log_txt: str) -> str:
@@ -929,7 +955,9 @@ def build_ui(api: Api) -> gr.Blocks:
             with gr.Tab("🗂 历史记录"):
                 gr.Markdown(
                     "**点击表格任意一行即可试听**,或用下面的下拉框选择。"
-                    "历史在服务重启后依然保留 —— 服务启动时会从 `output\\gui\\jobs\\` 扫描恢复。",
+                    "历史在服务重启后依然保留 —— 服务启动时会从 `output\\gui\\jobs\\` 扫描恢复。\n\n"
+                    "> 选中任务后,下方会显示**当时实际下发的全部参数**(种子 / 步数 / cfg …)"
+                    "以及风格与歌词原文。两者都来自该任务的 `request.json`,是引擎真正收到的东西。",
                     elem_classes="hint")
                 h_pick = gr.Dropdown(choices=[], value=None, label="选择历史任务(选中即试听)",
                                      interactive=True, filterable=True)
@@ -938,9 +966,18 @@ def build_ui(api: Api) -> gr.Blocks:
                     h_id = gr.Textbox(label="任务 ID(也可手动输入)", scale=2)
                     h_load = gr.Button("载入")
                 h_table = gr.Dataframe(
-                    headers=["任务", "时间", "状态", "阶段", "音频(s)", "RTF", "乐谱", "歌词首行"],
+                    headers=["任务", "时间", "状态", "阶段", "音频(s)", "RTF", "乐谱",
+                             "种子", "步数", "歌词首行"],
                     interactive=False, wrap=True)
                 h_audio = gr.Audio(label="音频", type="filepath")
+                h_params = gr.Markdown(
+                    value="<div style='color:#888;font-size:13px'>"
+                          "选中任务后显示该次生成的全部参数。</div>")
+                with gr.Accordion("风格与歌词原文(引擎实际收到的内容)", open=False):
+                    h_style = gr.Textbox(label="风格 style", lines=4,
+                                         show_copy_button=True, interactive=False)
+                    h_lyrics = gr.Textbox(label="歌词 lyrics", lines=16,
+                                          show_copy_button=True, interactive=False)
                 h_jp = gr.HTML(value="<div style='color:#888;font-size:13px'>"
                                      "选中任务后显示简谱(仅当该任务生成过乐谱)。</div>")
                 h_abc = gr.Textbox(label="乐谱原文(ABC 记谱法)", lines=10,
@@ -962,38 +999,45 @@ def build_ui(api: Api) -> gr.Blocks:
                     rows = []
                     # api.jobs() 已按创建时间倒序 —— 新的在最上面
                     for j in api.jobs():
-                        lyr = (j["request"].get("lyrics") or "").splitlines()
+                        req = j.get("request") or {}
+                        lyr = (req.get("lyrics") or "").splitlines()
                         first = next((ln for ln in lyr if ln.strip() and not ln.strip().startswith("[")), "")
                         m = j.get("metrics") or {}
                         rows.append([j["id"], j.get("created_str") or "-", j["status"],
                                      j["stage"], m.get("audio_s", "-"),
                                      m.get("rtf", "-"), "有" if j.get("has_abc") else "无",
+                                     req.get("seed", "-"), req.get("num_inference_steps", "-"),
                                      first[:36]])
                     return rows, gr.update(choices=job_choices())
 
                 def load(job_id):
                     if not job_id:
-                        return None, "", ""
+                        return None, "", "", "", "", ""
                     try:
                         s = api.job(job_id.strip())
                     except Exception:  # noqa: BLE001
-                        return None, "", ""
+                        return None, "", "", "", "", ""
                     abc = s.get("abc") or ""
+                    req = s.get("request") or {}
                     return (api.fetch_audio(job_id.strip()) if s.get("has_audio") else None,
-                            render_jianpu(abc), abc)
+                            render_jianpu(abc), abc,
+                            param_markdown(req), req.get("style", ""), req.get("lyrics", ""))
 
                 def on_row(evt: gr.SelectData):
                     row = getattr(evt, "row_value", None)
                     job_id = str(row[0]) if row else ""
                     if not job_id:
-                        return None, "", "", gr.update()
-                    audio, jp, abc = load(job_id)
-                    return audio, jp, abc, job_id
+                        return None, "", "", gr.update(), gr.update(), gr.update(), gr.update()
+                    audio, jp, abc, params, style, lyrics = load(job_id)
+                    return audio, jp, abc, job_id, params, style, lyrics
 
                 h_refresh.click(refresh, outputs=[h_table, h_pick])
-                h_pick.change(load, inputs=h_pick, outputs=[h_audio, h_jp, h_abc])
-                h_load.click(load, inputs=h_id, outputs=[h_audio, h_jp, h_abc])
-                h_table.select(on_row, outputs=[h_audio, h_jp, h_abc, h_id])
+                h_pick.change(load, inputs=h_pick,
+                              outputs=[h_audio, h_jp, h_abc, h_params, h_style, h_lyrics])
+                h_load.click(load, inputs=h_id,
+                             outputs=[h_audio, h_jp, h_abc, h_params, h_style, h_lyrics])
+                h_table.select(on_row,
+                               outputs=[h_audio, h_jp, h_abc, h_id, h_params, h_style, h_lyrics])
                 demo.load(refresh, outputs=[h_table, h_pick])
 
             # ------------------------------------------------ 日志历史

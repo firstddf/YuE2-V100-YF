@@ -109,10 +109,10 @@ def main() -> int:
             except Exception:  # noqa: BLE001
                 pass
             try:
-                _a, jp, raw = client.predict(target["id"], api_name="/load")
+                _a, jp, raw = client.predict(target["id"], api_name="/load")[:3]
                 via = "/load(下拉)"
             except Exception:  # noqa: BLE001
-                _a, jp, raw = client.predict(target["id"], api_name="/load_1")
+                _a, jp, raw = client.predict(target["id"], api_name="/load_1")[:3]
                 via = "/load_1(自由输入)"
             jp = str(jp or "")
             raw = str(raw or "")
@@ -138,7 +138,10 @@ def main() -> int:
             print("FAIL: 历史里没有可试听的音频")
             ok = False
         else:
-            target = playable[-1]
+            # 优先挑一个存过 request.json 的 —— 否则参数面板永远是空的,
+            # 这个检查就白做了(早期任务不写 request.json)。
+            with_req = [j for j in playable if j.get("request")]
+            target = (with_req or playable)[-1]
             # Gradio exposes one endpoint per distinct input component:
             #   /load   -> bound to the history Dropdown (validates against its choices)
             #   /load_1 -> bound to the free-text job id box
@@ -149,20 +152,36 @@ def main() -> int:
             except Exception:  # noqa: BLE001
                 pass
             try:
-                hist_audio, hist_jp, hist_abc = client.predict(target["id"], api_name="/load")
+                (hist_audio, hist_jp, hist_abc,
+                 hist_params, hist_style, hist_lyrics) = client.predict(target["id"], api_name="/load")
                 via = "/load(下拉)"
             except Exception:  # noqa: BLE001
-                hist_audio, hist_jp, hist_abc = client.predict(target["id"], api_name="/load_1")
+                (hist_audio, hist_jp, hist_abc,
+                 hist_params, hist_style, hist_lyrics) = client.predict(target["id"], api_name="/load_1")
                 via = "/load_1(自由输入)"
             exists = bool(hist_audio) and Path(hist_audio).exists()
             print(f"  {via} {target['id']} -> {hist_audio}")
             print(f"  文件存在: {exists}  乐谱: {'有' if (hist_abc or '').strip() else '无'}"
                   f"  简谱: {'有' if str(hist_jp or '').strip() else '无'}")
+            # 参数面板:有 request.json 的老任务才有内容
+            has_params = "| `" in str(hist_params or "")
+            print(f"  参数面板: {'有' if has_params else '无(该任务没存 request.json)'}"
+                  f"  风格: {len(str(hist_style or ''))} 字符"
+                  f"  歌词: {len(str(hist_lyrics or ''))} 字符")
             if not exists:
                 print("FAIL: 历史试听取不到音频文件")
                 ok = False
             else:
                 print("PASS: 历史音频可试听")
+            # 参数面板:种子/步数是这次新增的能力,存过 request.json 就必须渲染出来
+            if target.get("request"):
+                seed = target["request"].get("seed")
+                steps = target["request"].get("num_inference_steps")
+                if has_params and f"`seed`" in str(hist_params):
+                    print(f"PASS: 参数面板可见(seed={seed} steps={steps})")
+                else:
+                    print("FAIL: 该任务有 request.json,但参数面板没渲染出来")
+                    ok = False
     except Exception as exc:  # noqa: BLE001
         print(f"FAIL: 历史试听检查出错: {type(exc).__name__}: {exc}")
         ok = False
